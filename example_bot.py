@@ -2,43 +2,71 @@ import discord
 import csv
 import gspread
 import pandas as pd
-from oauth2client.service_account import ServiceAccountCredentials
+from discord import commands
 
-scope = ['https://spreadsheets.google.com/feeds','https://www.googleapis.com/auth/drive']
-creds = ServiceAccountCredentials.from_json_keyfile_name('add_json_file_here.json', scope)
-sheet_client = gspread.authorize(creds)
-
-sheet = sheet_client.open('commentary data')
-sheet_instance = sheet.get_worksheet(0)
-
-all_students = []
-for x in range(sheet_instance.row_count):
-    full_name = sheet_instance.cell(col=1,row=x+1)
-    subject = sheet_instance.cell(col=2,row=x+1)
-    date = sheet_instance.cell(col=3,row=x+1)
-    student_data = [full_name, subject, date]
-    all_students.append(student_data)
-
-
-
-
+bot = commands.Bot(command_prefix='$')
 discord_client = discord.Client()
 
 
+recorded_logs_channel = discord.utils.get(discord_client.get_all_channels(), name="recorded-logs")
+class_logs_channel = discord.utils.get(discord_client.get_all_channels(), name="class-logs")
+channel_id = recorded_logs_channel.id
+class_logs = "temp"
+logs_message = "temp"
+final_owed = "temp"
+final_owed_message = "temp"
 @discord_client.event
 async def on_ready():
     print('We have logged in as {0.user}'.format(discord_client))
+    async for m in discord_client.logs_from(channel):
+        if m.content() == "name of class logs":
+            class_logs = request(GET, m.attachments[0].url)
+            logs_message = m
+            print('class_logs found'.format(discord_client))
+        if m.content() == "name of final owed":
+            final_owed = request(GET, m.attachments[0].url)
+            final_owed_message = m
+            print('final_owed found'.format(discord_client))
+    print('Finished!'.format(discord_client))
 
 
-@discord_client.event
+
+    #Basically, this will be a check method. Whenever the bot starts itself up,
+    #it should do a check to see if the class_logs and final_owed match up with
+    #each other. As this is a safety feature and not part of the base functionality,
+    #it will be left here until I can get to it.
+
+    # csv_r_class_logs = csv.reader(class_logs, delimiter=' ')
+    # csv_r_final_owed = csv.reader(final_owed, delimiter=' ')
+
+    # all_students = []
+    # for x in range(sheet_instance.row_count):
+    #     full_name = sheet_instance.cell(col=1,row=x+1)
+    #     subject = sheet_instance.cell(col=2,row=x+1)
+    #     date = sheet_instance.cell(col=3,row=x+1)
+    #     student_data = [full_name, subject, date]
+    #     all_students.append(student_data)
+
+
+
+@bot.command()
 async def on_message(message):
     if message.author == discord_client.user:           #checks that it's not responding to itself
         return
 
     if message.content.startswith('$Taught'):   #checks that msg starts with $Taught
         words = message.content.split()
-        full_name = words[1] + words[2]
-        
-        await message.channel.send('Hello!')
+        date = words[5]
+        time = words[4]
+        full_name = words[1] + '_' + words[2]
+        subject = words[3]
+        class_cost = "temp"                     #need to make a csv file to store the prices of certain class types
+        with open(class_logs, 'w', newline='') as csvfile:
+            csv_w_class_logs = csv.writer(csvfile, delimiter=' ')
+            csv_w_class_logs.writerow([date] + [time] + [full_name] + [subject] + [class_cost])
+        await send(file = class_logs)
+
+        await 
+        csv_w_final_owed = csv.writer(final_owed, delimiter=' ')
 
 discord_client.run('put token here')
