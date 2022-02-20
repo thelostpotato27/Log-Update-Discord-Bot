@@ -1,8 +1,7 @@
 import discord
 import csv
-import gspread
 import pandas as pd
-from discord import commands
+from discord.ext import commands
 import shutil
 from tempfile import NamedTemporaryFile
 
@@ -12,7 +11,7 @@ discord_client = discord.Client()
 
 
 recorded_logs_channel = discord.utils.get(discord_client.get_all_channels(), name="recorded-logs")
-class_logs_channel = discord.utils.get(discord_client.get_all_channels(), name="class-logs")
+#class_logs_channel = discord.utils.get(discord_client.get_all_channels(), name="class-logs")
 channel_id = recorded_logs_channel.id
 class_logs = "temp"         #.csv file holding class_logs
 logs_message = "temp"       #specific message that holds the class_logs file
@@ -67,45 +66,48 @@ async def on_message(message):
 
     #checks that msg starts with $Taught
     #msg format is $Taught First_name Last_name subject time date
-    if message.content.startswith('$Taught'):   
-        words = message.content.split()         
+    if message.content.startswith('$Taught'):
+        words = message.content.split()
         date = words[5]
         time = words[4]
         full_name = words[1] + '_' + words[2]
         subject = words[3]
         class_cost = "temp"                     #need to make a csv file to store the prices of certain class types
-        with open(class_logs, 'w', newline='') as csvfile:      #.csv to hold classes held
-            csv_w_class_logs = csv.writer(csvfile, delimiter=' ')
-            csv_w_class_logs.writerow([date] + [time] + [full_name] + [subject] + [class_cost])
-        await recorded_logs_channel.send(file = class_logs)
 
         #accessing .csv that holds prices of classes held in dict of subject, amount.
         #takes the subject of the class taught and returns the price of the class taught
-
         amount_owed = 0
-        with open(class_cost, 'r', newline='') as csvfile:      
+        with open(class_cost, 'r', newline='') as csvfile:
             reader = csv.DictReader(csvfile, delimiter=' ')
             for row in reader:
                 if row['subject'] == subject:
                     amount_owed = row['amount']
 
-        #final owed is a Dictcsv of Name, Amount Due. Takes amount_owed
-        #and adds it to the person who was taught's final amount owed
-        
+        #final owed is a Dictcsv of [Name, Amount Due]. Takes amount_owed
+        #and adds it to the person who was taught's final amount owed.
+        #Checks beforehand whether the name being queried exists or not.
         tempfile = NamedTemporaryFile(mode='w', delete=False)
-
         fields = ['Name', 'amount_due']
-
         with open(final_owed, 'r') as csvfile, tempfile:
             reader = csv.DictReader(csvfile, fieldnames=fields)
             writer = csv.DictWriter(tempfile, fieldnames=fields)
+            name_exists_flag = 1
             for row in reader:
                 if row['Name'] == full_name:
-                    print('updating row', full_name)
-                    row['amount_due'] = amount_owed
+                    print('updating row',full_name.format(discord_client))
+                    row['amount_due'] += amount_owed
                 row = {'Name': row['Name'], 'amount_due': row['amount_due']}
                 writer.writerow(row)
-
+            if name_exists_flag:
+                print("Name does not exist, please check for spelling mistakes".format(discord_client))
+                return
         shutil.move(tempfile.name, final_owed)
+        await final_owed_message.edit(embed = final_owed)
 
-discord_client.run('put token here')
+        #writes row of data on class taught to csv file.
+        with open(class_logs, 'w', newline='') as csvfile:      #.csv to hold classes held
+            csv_w_class_logs = csv.writer(csvfile, delimiter=' ')
+            csv_w_class_logs.writerow([date] + [time] + [full_name] + [subject] + [amount_owed])
+        await logs_message.edit(embed = class_logs)
+
+discord_client.run('ODQyNTMxMDE3MzM2NDIyNDQw.YJ2qKA.INZFm_rGdoGQrbhW521nh811Zi4')
