@@ -159,4 +159,4 @@ async def on_message(message):
             csv_w_class_logs.writerow([date] + [time] + [first_name] + [last_name] + [subject] + [amount_owed])
         await logs_message.edit(embed = class_logs)
 
-discord_client.run('ODQyNTMxMDE3MzM2NDIyNDQw.GoZRHW.seoDOBKVNeW6dgC2PXsB4mbKi1-aDXSuxB7qFo')
+discord_client.run('key goes here')
