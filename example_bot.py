@@ -25,7 +25,9 @@ async def on_ready():
     guild = discord_client.get_guild(861399632461299732)
     recorded_logs_channel = discord.utils.get(discord_client.get_all_channels(), guild__name=guild.name, name='recorded-logs')
 
-    async for m in recorded_logs_channel.history(limit=100):
+    #The contents of the .csv files are stored as a huge string that will be parsed through later because I don't want to download the files locally.
+
+    async for m in recorded_logs_channel.history(limit=100):                        
         if m.attachments != [] and m.attachments[0].filename == "class_logs.csv":
             class_logs = await m.attachments[0].read()
             class_logs = class_logs.decode("utf-8", "strict")
