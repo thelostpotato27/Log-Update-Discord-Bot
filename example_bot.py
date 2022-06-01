@@ -16,6 +16,13 @@ final_owed_message = "temp" #specific message holding amount owed file
 class_cost = "temp"         #.csv file holding class_cost list
 class_cost_message = "temp" #specific message holding class cost file
 
+
+# internal class logs file, stored in .csv format. Instead of redownloading the .csv file to update it, the bot will download it once and
+# maintain its internal copy. Whenever an update is made, the bot will replace the current .csv file with its current internal copy
+class_logs_internal = NamedTemporaryFile(mode='w', delete=False)
+fields = ['date', 'time', 'first_name', 'last_name', 'subject', 'amount_owed']
+class_logs_writer = csv.DictWriter(class_logs_internal, fieldnames=fields)
+
 #On start, open recorded-logs channel and parse through messages, if message has an attachment with the 
 #proper names, assign those attachments to a variable and print that the proper message has been found
 @discord_client.event
@@ -30,12 +37,22 @@ async def on_ready():
     async for m in recorded_logs_channel.history(limit=100):
         # class logs format is [date, time, first name, last name, subject, amount owed]
         if m.attachments != [] and m.attachments[0].filename == "class_logs.csv":
-            class_logs = await m.attachments[0].read()
-            class_logs = class_logs.decode("utf-8", "strict")
-            class_logs = class_logs.split(',')
+            temp_holder = await m.attachments[0].read()
+            temp_holder = temp_holder.decode("utf-8", "strict")
+            temp_holder = temp_holder.replace('\n', '')
+            temp_holder = temp_holder.replace('\r', '')
+            temp_holder = temp_holder.split(',')
+            class_logs_size = int(len(temp_holder)/6)
+            class_logs = ['temp'] * (class_logs_size-1)
+            for i in range(1, class_logs_size):
+                starting_position = 6*i
+                class_logs[i-1] = [temp_holder[starting_position], temp_holder[starting_position+1], temp_holder[starting_position+2],temp_holder[starting_position+3], temp_holder[starting_position+4], temp_holder[starting_position+5]]
+                new_row = {'date': class_logs[i-1][0], 'time': class_logs[i-1][1], 'first_name': class_logs[i-1][2], 'last_name': class_logs[i-1][3], 'subject': class_logs[i-1][4], 'amount_owed': class_logs[i-1][5]}
+                class_logs_writer.writerow(new_row)
+
             logs_message = m
             print('class_logs found'.format(discord_client))
-            print(class_logs.format(discord_client))
+            print(class_logs)
 
         # final owed format is [First_name, Last_name, Amount Due]
         if m.attachments != [] and m.attachments[0].filename == "final_owed.csv":
@@ -92,44 +109,40 @@ async def on_ready():
 #4. replace the .csv files on the discord channel with the newly updated ones
 
 
+# test command understand how the bot.commands work, doesnt work for some reason
 @bot.command()
-async def on_message(message):
-    #checks that it's not responding to itself
-    if message.author == discord_client.user:
-        return
-    
-    stop_command = 1
+async def test(ctx, arg1):
+    await ctx.send(arg1)
 
+
+@bot.command()
+async def taught(ctx, first_name, last_name, subject, time, date):
+
+    stop_command = 1
+    print('command recieved'.format(discord_client))
     #checks that msg starts with $Taught
     #msg format is $Taught First_name Last_name subject time date
-    if message.content.startswith('$Taught'):
-        words = message.content.split()
-        date = words[5]
-        time = words[4]
-        full_name = words[1] + '_' + words[2]
-        first_name = words[1]
-        last_name = words[2]
-        subject = words[3]
 
-        #accessing .csv that holds prices of classes held in dict of subject, amount.
-        #takes the subject of the class taught and returns the price of the class taught
-        #class_cost csv file format is [subject, amount]
-        amount_owed = 0
-        for i in range(len(class_cost)):
-            if subject == class_cost[i]:
-                amount_owed = class_cost[i + 1]
-                break
-        if amount_owed == 0:
-            stop_command = 0
-            print("Subject does not exist, possible subjects:")
-            for elem in class_cost:
-                if subject[0] == elem[0]:
-                    print(elem)
+    full_name = first_name + '_' + last_name
 
 
+    #accessing .csv that holds prices of classes held in dict of subject, amount.
+    #takes the subject of the class taught and returns the price of the class taught
+    #class_cost csv file format is [subject, amount]
+    amount_owed = 0
+    for i in range(len(class_cost)):
+        if subject == class_cost[i]:
+            amount_owed = class_cost[i + 1]
+            break
+    if amount_owed == 0:
+        stop_command = 0
+        print("Subject does not exist, possible subjects:")
+        for elem in class_cost:
+            if subject[0] == elem[0]:
+                print(elem)
 
 
-
+    if stop_command:
         #final owed is a Dictcsv of [First_name, Last_name, Amount Due]. Takes amount_owed
         #and adds it to the person who was taught's final amount owed.
         #Checks beforehand whether the name being queried exists or not.
@@ -146,7 +159,12 @@ async def on_message(message):
                     name_seen_flag = 1
             new_row = {'First_name': row[0], 'Last_name': row[1], 'amount_due': row[2]}
             writer.writerow(new_row)
-        if not name_seen_flag:
+        if name_seen_flag:
+            # update 2D array class_logs and add a new row to the internal .csv file
+            class_logs.append([date, time, first_name , last_name, subject, amount_owed])
+            new_row = {'date': class_logs[-1][0], 'time': class_logs[-1][1], 'first_name': class_logs[-1][2], 'last_name': class_logs[-1][3], 'subject': class_logs[-1][4], 'amount_owed': class_logs[-1][5]}
+            class_logs_writer.writerow(new_row)
+        else:
             print("Name does not exist, please check for spelling mistakes. Potential names:".format(discord_client))
             #go through all names here and suggest names that either have the same first name spelling, same last name spelling, only have one letter mispelled,
             #or have the same first letter of first or last name and +-2 on the length of the first or last name
@@ -186,11 +204,7 @@ async def on_message(message):
             return
         # shutil.move(tempfile.name, final_owed)
         await final_owed_message.edit(embed = tempfile)
+        await logs_message.edit(embed = class_logs_internal)
 
-        #writes row of data on class taught to csv file.
-        with open(class_logs, 'w', newline='') as csvfile:      #.csv to hold classes held  
-            csv_w_class_logs = csv.writer(csvfile, delimiter=' ')
-            csv_w_class_logs.writerow([date] + [time] + [first_name] + [last_name] + [subject] + [amount_owed])
-        await logs_message.edit(embed = class_logs)
 
-discord_client.run('token here')
+discord_client.run('token')
