@@ -217,4 +217,4 @@ async def taught(ctx, first_name, last_name, subject, time, date):
         await logs_message.edit(embed = class_logs_internal)
 
 
-bot.run('ODQyNTMxMDE3MzM2NDIyNDQw.Gjq-i2.G__i13r7P4uFUbZEXadg0stftKu_uNMbcPCMGo')
+bot.run('add token here')
