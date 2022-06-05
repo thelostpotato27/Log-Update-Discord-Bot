@@ -7,7 +7,6 @@ from tempfile import NamedTemporaryFile
 
 
 bot = commands.Bot(command_prefix='$')
-discord_client = discord.Client()
 
 class_logs = "temp"         #.csv file holding class_logs
 logs_message = "temp"       #specific message that holds the class_logs file
@@ -25,12 +24,12 @@ class_logs_writer = csv.DictWriter(class_logs_internal, fieldnames=fields)
 
 #On start, open recorded-logs channel and parse through messages, if message has an attachment with the 
 #proper names, assign those attachments to a variable and print that the proper message has been found
-@discord_client.event
+@bot.event
 async def on_ready():
-    print('We have logged in as {0.user}'.format(discord_client))
+    print('We have logged in as {0.user}'.format(bot))
 
-    guild = discord_client.get_guild(861399632461299732)
-    recorded_logs_channel = discord.utils.get(discord_client.get_all_channels(), guild__name=guild.name, name='recorded-logs')
+    guild = bot.get_guild(861399632461299732)
+    recorded_logs_channel = discord.utils.get(bot.get_all_channels(), guild__name=guild.name, name='recorded-logs')
 
     #The contents of the .csv files are stored as a huge string that will be parsed through later because I don't want to download the files locally.
 
@@ -51,7 +50,7 @@ async def on_ready():
                 class_logs_writer.writerow(new_row)
 
             logs_message = m
-            print('class_logs found'.format(discord_client))
+            print('class_logs found'.format(bot))
             print(class_logs)
 
         # final owed format is [First_name, Last_name, Amount Due]
@@ -67,7 +66,7 @@ async def on_ready():
                 starting_position = 3*i
                 final_owed[i-1] = [temp_holder[starting_position], temp_holder[starting_position+1], temp_holder[starting_position+2]]
             final_owed_message = m
-            print('final_owed found'.format(discord_client))
+            print('final_owed found'.format(bot))
             print(final_owed)
         
         # class cost format is [Subject, Amount]
@@ -79,9 +78,9 @@ async def on_ready():
             class_cost = class_cost.split(',')
             class_cost = class_cost[2:]
             class_cost_message = m
-            print('class_cost found'.format(discord_client))
+            print('class_cost found'.format(bot))
             print(class_cost)
-    print('Finished!'.format(discord_client))
+    print('Finished!'.format(bot))
 
 
 
@@ -109,9 +108,20 @@ async def on_ready():
 #4. replace the .csv files on the discord channel with the newly updated ones
 
 
+# @bot.event
+# async def on_message(message):
+#     if message.author == bot.user:
+#         return
+
+#     if message.content.startswith('$hello'):
+#         await message.channel.send('Hello!')
+
+
+
 # test command understand how the bot.commands work, doesnt work for some reason
 @bot.command()
 async def test(ctx, arg1):
+    print('running test command')
     await ctx.send(arg1)
 
 
@@ -119,7 +129,7 @@ async def test(ctx, arg1):
 async def taught(ctx, first_name, last_name, subject, time, date):
 
     stop_command = 1
-    print('command recieved'.format(discord_client))
+    print('command recieved'.format(bot))
     #checks that msg starts with $Taught
     #msg format is $Taught First_name Last_name subject time date
 
@@ -154,7 +164,7 @@ async def taught(ctx, first_name, last_name, subject, time, date):
         for row in final_owed:
             if row[0] == first_name:
                 if row[1] == last_name:
-                    print('updating row',full_name.format(discord_client))
+                    print('updating row',full_name.format(bot))
                     row[2] += amount_owed
                     name_seen_flag = 1
             new_row = {'First_name': row[0], 'Last_name': row[1], 'amount_due': row[2]}
@@ -165,7 +175,7 @@ async def taught(ctx, first_name, last_name, subject, time, date):
             new_row = {'date': class_logs[-1][0], 'time': class_logs[-1][1], 'first_name': class_logs[-1][2], 'last_name': class_logs[-1][3], 'subject': class_logs[-1][4], 'amount_owed': class_logs[-1][5]}
             class_logs_writer.writerow(new_row)
         else:
-            print("Name does not exist, please check for spelling mistakes. Potential names:".format(discord_client))
+            print("Name does not exist, please check for spelling mistakes. Potential names:".format(bot))
             #go through all names here and suggest names that either have the same first name spelling, same last name spelling, only have one letter mispelled,
             #or have the same first letter of first or last name and +-2 on the length of the first or last name
             for row in final_owed:
@@ -175,8 +185,8 @@ async def taught(ctx, first_name, last_name, subject, time, date):
                     for i in range(first_name.len()):
                         if first_name[i] != row[0][i]: mispelled += 1
                     if mispelled <= 2:
-                        print(row[0].format(discord_client))
-                        print(row[1].format(discord_client))
+                        print(row[0].format(bot))
+                        print(row[1].format(bot))
                         continue
                 
                 if last_name.len() == row[1].len():
@@ -184,21 +194,21 @@ async def taught(ctx, first_name, last_name, subject, time, date):
                     for i in range(last_name.len()):
                         if last_name[i] != row[1][i]: mispelled += 1
                     if mispelled <= 2:
-                        print(row[0].format(discord_client))
-                        print(row[1].format(discord_client))
+                        print(row[0].format(bot))
+                        print(row[1].format(bot))
                         continue
                 
                 #prints name if have the same first starting letter and also have a name length difference of 2 or less
                 if first_name.len() >= row[0].len()-1 or first_name.len() <= row[0].len()+1:
                     if first_name[0] == row[0][0]:
-                        print(row[0].format(discord_client))
-                        print(row[1].format(discord_client))
+                        print(row[0].format(bot))
+                        print(row[1].format(bot))
                         continue
 
                 if last_name.len() >= row[1].len()-1 or last_name.len() <= row[1].len()+1:
                     if last_name[0] == row[1][0]:
-                        print(row[1].format(discord_client))
-                        print(row[1].format(discord_client))
+                        print(row[1].format(bot))
+                        print(row[1].format(bot))
                         continue
 
             return
@@ -207,4 +217,4 @@ async def taught(ctx, first_name, last_name, subject, time, date):
         await logs_message.edit(embed = class_logs_internal)
 
 
-discord_client.run('token')
+bot.run('ODQyNTMxMDE3MzM2NDIyNDQw.Gjq-i2.G__i13r7P4uFUbZEXadg0stftKu_uNMbcPCMGo')
