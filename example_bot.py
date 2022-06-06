@@ -3,7 +3,7 @@ import csv
 import pandas as pd
 from discord.ext import commands
 import shutil
-from tempfile import NamedTemporaryFile
+import tempfile
 
 
 bot = commands.Bot(command_prefix='$')
@@ -14,13 +14,13 @@ bot.final_owed = "temp"         #.csv file holding final amounts owed
 bot.final_owed_message = "temp" #specific message holding amount owed file
 bot.class_cost = "temp"         #.csv file holding class_cost list
 bot.class_cost_message = "temp" #specific message holding class cost file
+bot.recorded_logs_channel = "temp"  #channel with all stored .csv files
 
 
 # internal class logs file, stored in .csv format. Instead of redownloading the .csv file to update it, the bot will download it once and
 # maintain its internal copy. Whenever an update is made, the bot will replace the current .csv file with its current internal copy
-bot.class_logs_internal = NamedTemporaryFile(mode='w', delete=False)
-fields = ['date', 'time', 'first_name', 'last_name', 'subject', 'amount_owed']
-class_logs_writer = csv.DictWriter(bot.class_logs_internal, fieldnames=fields)
+bot.class_logs_internal = tempfile.NamedTemporaryFile(delete=False)
+
 
 #On start, open recorded-logs channel and parse through messages, if message has an attachment with the 
 #proper names, assign those attachments to a variable and print that the proper message has been found
@@ -29,11 +29,11 @@ async def on_ready():
     print('We have logged in as {0.user}'.format(bot))
 
     guild = bot.get_guild(861399632461299732)
-    recorded_logs_channel = discord.utils.get(bot.get_all_channels(), guild__name=guild.name, name='recorded-logs')
+    bot.recorded_logs_channel = discord.utils.get(bot.get_all_channels(), guild__name=guild.name, name='recorded-logs')
 
     #The contents of the .csv files are stored as a huge string that will be parsed through later because I don't want to download the files locally.
 
-    async for m in recorded_logs_channel.history(limit=100):
+    async for m in bot.recorded_logs_channel.history(limit=100):
         # class logs format is [date, time, first name, last name, subject, amount owed]
         if m.attachments != [] and m.attachments[0].filename == "class_logs.csv":
             temp_holder = await m.attachments[0].read()
@@ -41,13 +41,22 @@ async def on_ready():
             temp_holder = temp_holder.replace('\n', '')
             temp_holder = temp_holder.replace('\r', '')
             temp_holder = temp_holder.split(',')
+            print("printing temp holder")
+            print(temp_holder)
             class_logs_size = int(len(temp_holder)/6)
-            bot.class_logs = ['temp'] * (class_logs_size-1)
-            for i in range(1, class_logs_size):
-                starting_position = 6*i
-                bot.class_logs[i-1] = [temp_holder[starting_position], temp_holder[starting_position+1], temp_holder[starting_position+2],temp_holder[starting_position+3], temp_holder[starting_position+4], temp_holder[starting_position+5]]
-                new_row = {'date': bot.class_logs[i-1][0], 'time': bot.class_logs[i-1][1], 'first_name': bot.class_logs[i-1][2], 'last_name': bot.class_logs[i-1][3], 'subject': bot.class_logs[i-1][4], 'amount_owed': bot.class_logs[i-1][5]}
-                class_logs_writer.writerow(new_row)
+            bot.class_logs = ['temp'] * (class_logs_size)
+            fields = ['date', 'time', 'first_name', 'last_name', 'subject', 'amount_owed']
+            with open(bot.class_logs_internal.name, 'w') as class_log_csv:
+                print("class logs file opened")
+                class_logs_writer = csv.writer(class_log_csv)
+                class_logs_writer.writerow(fields)
+                for i in range(class_logs_size):
+                    starting_position = 6*i
+                    bot.class_logs[i] = [temp_holder[starting_position], temp_holder[starting_position+1], temp_holder[starting_position+2],temp_holder[starting_position+3], temp_holder[starting_position+4], temp_holder[starting_position+5]]
+                    new_row = [bot.class_logs[i][0], bot.class_logs[i][1], bot.class_logs[i][2], bot.class_logs[i][3], bot.class_logs[i][4], bot.class_logs[i][5]]
+                    class_logs_writer.writerow(new_row)
+                    print(new_row)
+                await bot.recorded_logs_channel.send(file = discord.File(bot.class_logs_internal.name, filename = 'class_logs_before.csv'))
 
             bot.logs_message = m
             print('class_logs found'.format(bot))
@@ -158,32 +167,38 @@ async def taught(ctx, first_name, last_name, subject, time, date):
         #final owed is a Dictcsv of [First_name, Last_name, Amount Due]. Takes amount_owed
         #and adds it to the person who was taught's final amount owed.
         #Checks beforehand whether the name being queried exists or not.
-        tempfile = NamedTemporaryFile(mode='w', delete=False)
+        temp_csv = tempfile.NamedTemporaryFile(delete=False)
         fields = ['First_name', 'Last_name', 'amount_due']
 
-        writer = csv.DictWriter(tempfile, fieldnames=fields)
-        name_seen_flag = 0
-        print("First name inputed: ", end = '')
-        print(first_name)
-        print("Last name input: ", end = '')
-        print(last_name)
-        for row in bot.final_owed:
-            print("Row in final owed:")
-            print(row)
-            print("row[0] is ", end = '')
-            print(row[0])
-            if row[0] == first_name:
-                if row[1] == last_name:
-                    print('updating row',full_name.format(bot))
-                    row[2] += amount_owed
-                    name_seen_flag = 1
-            new_row = {'First_name': row[0], 'Last_name': row[1], 'amount_due': row[2]}
-            writer.writerow(new_row)
+
+        with open(temp_csv.name, 'w') as fake_csv:
+            writer = csv.writer(fake_csv)
+            writer.writerow(fields)
+            name_seen_flag = 0
+            print("First name inputed: ", end = '')
+            print(first_name)
+            print("Last name input: ", end = '')
+            print(last_name)
+            for row in bot.final_owed:
+                print("Row in final owed:")
+                print(row)
+                print("row[0] is ", end = '')
+                print(row[0])
+                if row[0] == first_name:
+                    if row[1] == last_name:
+                        print('updating row',full_name.format(bot))
+                        row[2] = int(amount_owed) + int(row[2])
+                        name_seen_flag = 1
+                new_row = [row[0], row[1], row[2]]
+                writer.writerow(new_row)
+        
         if name_seen_flag:
             # update 2D array class_logs and add a new row to the internal .csv file
             bot.class_logs.append([date, time, first_name , last_name, subject, amount_owed])
-            new_row = {'date': bot.class_logs[-1][0], 'time': bot.class_logs[-1][1], 'first_name': bot.class_logs[-1][2], 'last_name': bot.class_logs[-1][3], 'subject': bot.class_logs[-1][4], 'amount_owed': bot.class_logs[-1][5]}
-            class_logs_writer.writerow(new_row)
+            new_row = [bot.class_logs[-1][0], bot.class_logs[-1][1], bot.class_logs[-1][2], bot.class_logs[-1][3], bot.class_logs[-1][4], bot.class_logs[-1][5]]
+            with open(bot.class_logs_internal.name, 'w') as class_log_csv:
+                class_logs_writer = csv.writer(class_log_csv)
+                class_logs_writer.writerow(new_row)
         else:
             print("Name does not exist, please check for spelling mistakes. Potential names:".format(bot))
             #go through all names here and suggest names that either have the same first name spelling, same last name spelling, only have one letter mispelled,
@@ -222,9 +237,24 @@ async def taught(ctx, first_name, last_name, subject, time, date):
                         continue
 
             return
-        # shutil.move(tempfile.name, final_owed)
-        await bot.final_owed_message.edit(embed = tempfile)
-        await bot.logs_message.edit(embed = bot.class_logs_internal)
 
+        # await bot.final_owed_message.edit(embed = tempfile) 
+        # directory = fake_csv.gettempdir
+        # print(directory)
+        print(temp_csv.name)
+
+        # await bot.delete(bot.final_owed_message)
+        await bot.final_owed_message.delete()
+        await bot.recorded_logs_channel.send(file = discord.File(temp_csv.name, filename = 'final_owed.csv'))
+
+        # await bot.logs_message.delete_message()
+        await bot.logs_message.delete()
+        await bot.recorded_logs_channel.send(file = discord.File(bot.class_logs_internal.name, filename = 'class_logs.csv'))
+
+        async for m in bot.recorded_logs_channel.history(limit=100):
+            if m.attachments != [] and m.attachments[0].filename == "class_logs.csv":
+                bot.logs_message = m
+            if m.attachments != [] and m.attachments[0].filename == "final_owed.csv":
+                bot.final_owed_message = m
 
 bot.run('token here')
