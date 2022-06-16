@@ -49,14 +49,14 @@ async def on_ready():
             with open(bot.class_logs_internal.name, 'w') as class_log_csv:
                 print("class logs file opened")
                 class_logs_writer = csv.writer(class_log_csv)
-                class_logs_writer.writerow(fields)
+                # class_logs_writer.writerow(fields)
                 for i in range(class_logs_size):
                     starting_position = 6*i
                     bot.class_logs[i] = [temp_holder[starting_position], temp_holder[starting_position+1], temp_holder[starting_position+2],temp_holder[starting_position+3], temp_holder[starting_position+4], temp_holder[starting_position+5]]
                     new_row = [bot.class_logs[i][0], bot.class_logs[i][1], bot.class_logs[i][2], bot.class_logs[i][3], bot.class_logs[i][4], bot.class_logs[i][5]]
                     class_logs_writer.writerow(new_row)
                     print(new_row)
-                await bot.recorded_logs_channel.send(file = discord.File(bot.class_logs_internal.name, filename = 'class_logs_before.csv'))
+            # await bot.recorded_logs_channel.send(file = discord.File(bot.class_logs_internal.name, filename = 'class_logs_after.csv'))
 
             bot.logs_message = m
             print('class_logs found'.format(bot))
@@ -168,7 +168,7 @@ async def taught(ctx, first_name, last_name, subject, time, date):
         #and adds it to the person who was taught's final amount owed.
         #Checks beforehand whether the name being queried exists or not.
         temp_csv = tempfile.NamedTemporaryFile(delete=False)
-        fields = ['First_name', 'Last_name', 'amount_due']
+        fields = ['First_name', 'Last_name', 'amount_due,']
 
 
         with open(temp_csv.name, 'w') as fake_csv:
@@ -196,9 +196,13 @@ async def taught(ctx, first_name, last_name, subject, time, date):
             # update 2D array class_logs and add a new row to the internal .csv file
             bot.class_logs.append([date, time, first_name , last_name, subject, amount_owed])
             new_row = [bot.class_logs[-1][0], bot.class_logs[-1][1], bot.class_logs[-1][2], bot.class_logs[-1][3], bot.class_logs[-1][4], bot.class_logs[-1][5]]
+            print(new_row)
+            # await bot.recorded_logs_channel.send(file = discord.File(bot.class_logs_internal.name, filename = 'class_logs_before_update.csv'))
             with open(bot.class_logs_internal.name, 'w') as class_log_csv:
                 class_logs_writer = csv.writer(class_log_csv)
                 class_logs_writer.writerow(new_row)
+            # await bot.recorded_logs_channel.send(file = discord.File(bot.class_logs_internal.name, filename = 'class_logs_after_update.csv'))
+
         else:
             print("Name does not exist, please check for spelling mistakes. Potential names:".format(bot))
             #go through all names here and suggest names that either have the same first name spelling, same last name spelling, only have one letter mispelled,
@@ -243,13 +247,12 @@ async def taught(ctx, first_name, last_name, subject, time, date):
         # print(directory)
         print(temp_csv.name)
 
-        # await bot.delete(bot.final_owed_message)
         await bot.final_owed_message.delete()
         await bot.recorded_logs_channel.send(file = discord.File(temp_csv.name, filename = 'final_owed.csv'))
 
-        # await bot.logs_message.delete_message()
-        await bot.logs_message.delete()
-        await bot.recorded_logs_channel.send(file = discord.File(bot.class_logs_internal.name, filename = 'class_logs.csv'))
+
+        # await bot.logs_message.delete()
+        await bot.recorded_logs_channel.send(file = discord.File(bot.class_logs_internal.name, filename = 'class_logs_update.csv'))
 
         async for m in bot.recorded_logs_channel.history(limit=100):
             if m.attachments != [] and m.attachments[0].filename == "class_logs.csv":
@@ -257,4 +260,4 @@ async def taught(ctx, first_name, last_name, subject, time, date):
             if m.attachments != [] and m.attachments[0].filename == "final_owed.csv":
                 bot.final_owed_message = m
 
-bot.run('token here')
+bot.run('ODQyNTMxMDE3MzM2NDIyNDQw.GhNJJM.PH1jCMu058dvDUx2Zev1ijJFw7OYpYvAEe7QcE')
