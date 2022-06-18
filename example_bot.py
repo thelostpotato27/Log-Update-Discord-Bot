@@ -45,7 +45,7 @@ async def on_ready():
             print(temp_holder)
             class_logs_size = int(len(temp_holder)/6)
             bot.class_logs = ['temp'] * (class_logs_size)
-            fields = ['date', 'time', 'first_name', 'last_name', 'subject', 'amount_owed']
+            
             with open(bot.class_logs_internal.name, 'w') as class_log_csv:
                 print("class logs file opened")
                 class_logs_writer = csv.writer(class_log_csv)
@@ -195,13 +195,16 @@ async def taught(ctx, first_name, last_name, subject, time, date):
         if name_seen_flag:
             # update 2D array class_logs and add a new row to the internal .csv file
             bot.class_logs.append([date, time, first_name , last_name, subject, amount_owed])
-            new_row = [bot.class_logs[-1][0], bot.class_logs[-1][1], bot.class_logs[-1][2], bot.class_logs[-1][3], bot.class_logs[-1][4], bot.class_logs[-1][5]]
-            print(new_row)
-            # await bot.recorded_logs_channel.send(file = discord.File(bot.class_logs_internal.name, filename = 'class_logs_before_update.csv'))
+            fields = ['date', 'time', 'first_name', 'last_name', 'subject', 'amount_owed']
             with open(bot.class_logs_internal.name, 'w') as class_log_csv:
+                print("class logs file opened")
                 class_logs_writer = csv.writer(class_log_csv)
-                class_logs_writer.writerow(new_row)
-            # await bot.recorded_logs_channel.send(file = discord.File(bot.class_logs_internal.name, filename = 'class_logs_after_update.csv'))
+                # class_logs_writer.writerow(fields)
+                class_logs_writer.writerow(fields)
+                for i in range(len(bot.class_logs)):
+                    new_row = [bot.class_logs[i][0], bot.class_logs[i][1], bot.class_logs[i][2], bot.class_logs[i][3], bot.class_logs[i][4], bot.class_logs[i][5]]
+                    class_logs_writer.writerow(new_row)
+            
 
         else:
             print("Name does not exist, please check for spelling mistakes. Potential names:".format(bot))
@@ -260,4 +263,4 @@ async def taught(ctx, first_name, last_name, subject, time, date):
             if m.attachments != [] and m.attachments[0].filename == "final_owed.csv":
                 bot.final_owed_message = m
 
-bot.run('ODQyNTMxMDE3MzM2NDIyNDQw.GhNJJM.PH1jCMu058dvDUx2Zev1ijJFw7OYpYvAEe7QcE')
+bot.run('token here')
